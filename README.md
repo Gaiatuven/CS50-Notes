@@ -7,7 +7,7 @@ Welcome to your CS50 learning journey!
 
 ### Fundamentals
 - [[Week_0_Scratch/notes|Week 0: Scratch]]
-- [[Week_1_C/notes|Week 1: C]]
+- [[CS50-Notes/Week_1_C/Notes|Week 1: C]]
 - [[Week_2_Arrays/notes|Week 2: Arrays]]
 - [[Week_3_Algorithms/notes|Week 3: Algorithms]]
 - [[Week_4_Memory/notes|Week 4: Memory]]
