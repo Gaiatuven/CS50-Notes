@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    int i, j;
+    int i, j, k;
     int user_input;
     while (true)
     { // Takes user input for height of pyramid
@@ -12,7 +12,7 @@ int main(void)
         // Checks if input is below 0 or above 8
         if (user_input < 1 || user_input >= 8)
         {
-            printf("Enter positive between 1 - 8.");
+            printf("Enter positive between 1 - 8.\n");
             continue;
         }
         else
@@ -22,12 +22,16 @@ int main(void)
         }
     }
 
-    
-    for (i = 0; i < user_input; i++)
+    for (i = 1; i <= user_input; i++)
     {
-        for (j = 0; j <= i; j++)
+        for (j = i; j < user_input; j++)
+        { // Print spaces
+            printf(" ");
+        }
+        // Print brics
+        for (k = 1; k <= i; k++)
         {
-            printf("*");
+            printf("#");
         }
         printf("\n");
     }
