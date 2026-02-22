@@ -1,17 +1,30 @@
+#include <cs50.h>
 #include <stdio.h>
 
 int main(void)
 {
-    int pyramid_height;
     int i, j;
-    // Prompt the user for the pyramid's height
-    printf("Provide a height for the pyramid: ");
-    // Print a pyramid of that height
-    scanf("%d", &pyramid_height);
+    int user_input;
+    while (true)
+    { // Takes user input for height of pyramid
+        user_input = get_int("Height: ");
 
-    for (i = 0; i < pyramid_height; i++)
+        // Checks if input is below 0 or above 8
+        if (user_input < 1 || user_input >= 8)
+        {
+            printf("Enter positive between 1 - 8.");
+            continue;
+        }
+        else
+        {
+
+            break;
+        }
+    }
+
+    
+    for (i = 0; i < user_input; i++)
     {
-        
         for (j = 0; j <= i; j++)
         {
             printf("*");
