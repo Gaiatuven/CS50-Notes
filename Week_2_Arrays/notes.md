@@ -3,6 +3,7 @@
 ## 📝 Lecture Notes
 
 ### Key Concepts
+- [[Functions]]
 - 
 
 ### Important Points
