@@ -62,3 +62,5 @@ int length_of_word(char word[]) {
   }
   return sum; // Return the total Scrabble score
 }
+
+char letters1 = []
