@@ -6,6 +6,7 @@
 
 [[Section_1]]
 
+
 ### Important Points
 - 
 
@@ -13,9 +14,9 @@
 - 
 
 ## 🔗 Resources
-- Lecture video: 
-- Lecture notes: 
-- Shorts: 
+- Lecture video:  https://cs50.harvard.edu/x/weeks/1/
+- Lecture notes:  https://cs50.harvard.edu/x/notes/1/
+- Shorts:  https://cs50.harvard.edu/x/shorts/
 
 ## ✅ Problem Sets
 - [ ] Problem Set completed
