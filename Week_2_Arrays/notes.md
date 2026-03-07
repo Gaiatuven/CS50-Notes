@@ -7,6 +7,7 @@
 - [[Variables-Scope]]
 - [[Arrays]]
 - [[Command-Line Arguments]]
+- [[Week2-Section-Notes]]
 
 ### Important Points
 - 
