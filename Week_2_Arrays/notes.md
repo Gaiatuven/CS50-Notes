@@ -6,6 +6,7 @@
 - [[Functions]]
 - [[Variables-Scope]]
 - [[Arrays]]
+- [[Command-Line Arguments]]
 
 ### Important Points
 - 
