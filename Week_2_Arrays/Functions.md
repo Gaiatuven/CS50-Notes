@@ -31,3 +31,17 @@ The return-type is what kind of variable the function will output.
 ● The name is what you want to call your function.
 ● The argument-list is the comma-separated set of inputs to your function, each of which has a type and a name
 
+## Function Definitions
+
+```C
+float mult_two_reals(float x, float y); // Function declaraction
+```
+
+```c
+float mult_two_reals(float x, float y) // Function definition
+{
+float product = x * y;
+return product;
+} 
+```
+
