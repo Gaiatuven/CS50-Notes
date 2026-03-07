@@ -10,11 +10,13 @@
 - 
 
 ## 💡 Key Takeaways
-- 
+-  void argument list
+- Function declaraction
+- Function definition
 
 ## 🔗 Resources
-- Lecture video: 
-- Lecture notes: 
+- Lecture video:  https://cs50.harvard.edu/x/shorts/functions/
+- Lecture notes:  https://cdn.cs50.net/2017/fall/shorts/functions/functions.pdf
 - Shorts: 
 
 ## ✅ Problem Sets
