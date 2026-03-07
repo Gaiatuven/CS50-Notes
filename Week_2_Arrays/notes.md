@@ -4,7 +4,8 @@
 
 ### Key Concepts
 - [[Functions]]
-- 
+- [[Variables-Scope]]
+- [[Arrays]]
 
 ### Important Points
 - 
