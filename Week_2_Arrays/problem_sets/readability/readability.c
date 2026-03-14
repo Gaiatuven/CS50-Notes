@@ -1,11 +1,12 @@
 #include <ctype.h>
-#include <math.h>
 #include <stdio.h>
+#include <math.h>
 #include <string.h>
 
 int total_amount_of_letters(char *userInput);
 int total_amount_of_words(char *userInput);
 int total_amount_of_sentences(char *userInput);
+int coleman_index(double coleman_liau_index);
 
 int main(void) {
 
@@ -41,11 +42,30 @@ int main(void) {
   double S =
       ((double)total_amount_of_sentence / total_amount_of_words_count) * 100;
 
-  coleman_liau_index = 0.0588 * L -
-                       0.296 * S - 15.8;
-  printf("%f\n", coleman_liau_index);
+  coleman_liau_index = 0.0588 * L - 0.296 * S - 15.8;
 
   // Print the grade level
+  int grade = coleman_index(coleman_liau_index);
+
+  if (grade == 0) {
+    printf("Before Grade 1\n");
+  } else if (grade == 16) {
+    printf("Grade 16+\n");
+  } else {
+    printf("Grade %d\n", grade);
+  }
+}
+
+
+
+int coleman_index(double coleman_liau_index) {
+  if (coleman_liau_index < 1) {
+    return 0;
+  } else if (coleman_liau_index >= 16) {
+    return 16;
+  } else {
+    return (int)(coleman_liau_index);
+  }
 }
 
 // Count letters in the text
