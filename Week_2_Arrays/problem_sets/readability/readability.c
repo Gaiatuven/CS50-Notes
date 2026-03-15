@@ -1,6 +1,6 @@
 #include <ctype.h>
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 int total_amount_of_letters(char *userInput);
@@ -11,7 +11,7 @@ int coleman_index(double coleman_liau_index);
 int main(void) {
 
   // Variables to store count of letters, words, sentences
-  char userInput[256];
+  char userInput[1024];
   int total_amount_of_characters;
   int total_amount_of_words_count;
   int total_amount_of_sentence;
@@ -36,7 +36,6 @@ int main(void) {
   printf("--------------------------------------------\n");
 
   // Compute the Coleman-Liau index
-
   double L =
       ((double)total_amount_of_characters / total_amount_of_words_count) * 100;
   double S =
@@ -49,44 +48,42 @@ int main(void) {
 
   if (grade == 0) {
     printf("Before Grade 1\n");
-  } else if (grade == 16) {
+  } else if (grade >= 16) {
     printf("Grade 16+\n");
   } else {
     printf("Grade %d\n", grade);
   }
+
+  for (int i = 0; userInput[i] != '\0'; i++) {
+    printf("%c = %d\n", userInput[i], userInput[i]);
+  }
 }
 
-
-
 int coleman_index(double coleman_liau_index) {
-  if (coleman_liau_index < 1) {
+  if (coleman_liau_index < 1.0) {
     return 0;
-  } else if (coleman_liau_index >= 16) {
+  } else if (coleman_liau_index >= 16.0) {
     return 16;
   } else {
-    return (int)(coleman_liau_index);
+    return (int)(coleman_liau_index + 0.5);
   }
 }
 
 // Count letters in the text
 int total_amount_of_letters(char *userInput) {
   int amount_of_letters = 0;
-  // Checking for letters
   for (int i = 0; userInput[i] != '\0'; i++) {
     if (isalpha((unsigned char)userInput[i])) {
       amount_of_letters++;
     }
   }
-
   return amount_of_letters;
 }
 
 // Count words in text
 int total_amount_of_words(char *userInput) {
   int amount_of_words = 0;
-
-  for (int i = 0; userInput[i] != '\0';
-       i++) { // Checking for transition from non-space to space
+  for (int i = 0; userInput[i] != '\0'; i++) {
     if (!isspace((unsigned char)userInput[i]) &&
         isspace((unsigned char)userInput[i + 1])) {
       amount_of_words++;
@@ -95,11 +92,10 @@ int total_amount_of_words(char *userInput) {
   return amount_of_words;
 }
 
-// // Count sentences in the text
+// Count sentences in the text
 int total_amount_of_sentences(char *userInput) {
   int amount_of_sentences = 0;
   for (int i = 0; userInput[i] != '\0'; i++) {
-    // Checking for sentence-ending punctuation only
     if (userInput[i] == '.' || userInput[i] == '!' || userInput[i] == '?') {
       amount_of_sentences++;
     }
