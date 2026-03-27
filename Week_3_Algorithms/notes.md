@@ -9,7 +9,13 @@
 - 
 
 ## 💡 Key Takeaways
-- 
+-  [[Linear Search]]
+- [[Binary Search]]
+-  [[Bubble Sort]]
+- [[Selection Sort]]
+2. [[Call Stacks]]
+3. [[Recursion]]
+4. [[Merge Sort]]
 
 ## 🔗 Resources
 - Lecture video: 
