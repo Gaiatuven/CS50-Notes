@@ -14,7 +14,7 @@
 ## 🔗 Resources
 - Lecture video: 
 - Lecture notes: 
-- Shorts: 
+- [[Shorts-4]]: 
 
 ## ✅ Problem Sets
 - [ ] Problem Set completed
