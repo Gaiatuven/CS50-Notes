@@ -1,37 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h> // Needed for uint8_t
+#include <stdint.h>
 
-// Define the block size for memory cards
 #define BLOCK_SIZE 512
 
 int main(int argc, char *argv[])
 {
-    // 1. Check for exactly 2 arguments
+    int in_jpeg = 0;
+    int counter = 0;
+
     if (argc != 2)
     {
         printf("Usage: ./recover card.raw\n");
         return 1;
     }
 
-    // 2. Open the memory card in binary read mode
-    FILE *input = fopen(argv[1], "rb");
-    if (input == NULL)
+    FILE *raw_file = fopen(argv[1], "rb");
+    if (raw_file == NULL)
     {
         printf("Could not open file %s.\n", argv[1]);
         return 1;
     }
 
-    // Buffer to store a 512-byte block of data
     uint8_t buffer[BLOCK_SIZE];
+    char filename[8];
+    FILE *img = NULL;
 
-    // 3. Read 512-byte chunks at a time until the end of the file
-    while (fread(buffer, 1, BLOCK_SIZE, input) == BLOCK_SIZE)
+    while (fread(buffer, 1, BLOCK_SIZE, raw_file) == BLOCK_SIZE)
     {
-        // TODO: Look for JPEG signatures and write blocks to output files
+        if (buffer[0] == 0xff && buffer[1] == 0xd8 && buffer[2] == 0xff && (buffer[3] & 0xf0) == 0xe0)
+        {
+            // Close previous JPEG if one is open
+            if (in_jpeg)
+            {
+                fclose(img);
+            }
+            sprintf(filename, "%03i.jpg", counter);
+            counter++;
+            img = fopen(filename, "wb");
+            in_jpeg = 1;
+        }
+
+        // Write block if we're inside a JPEG
+        if (in_jpeg)
+        {
+            fwrite(buffer, 1, BLOCK_SIZE, img);
+        }
     }
 
-    // 4. Close the input file
-    fclose(input);
+    // Close the last JPEG if one is open
+    if (in_jpeg)
+    {
+        fclose(img);
+    }
+
+    fclose(raw_file);
     return 0;
 }
