@@ -457,3 +457,244 @@ int main(void) {
 ```
 
 
+## Doubly-Linked Lists
+
+• Singly-linked lists really extend our ability to collect and organize data, but they suffer from a crucial limitation. 
+• We can only ever move in one direction through the list.
+• Consider the implication that would have for trying to delete a node. 
+• A doubly-linked list, by contrast, allows us to move forward and backward through the list, all by simply adding one extra pointer to our struct definition. 
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+typedef int VALUE;
+
+/* A doubly-linked list node has TWO pointers instead of one:
+ * 'next' points forward, 'prev' points backward. This lets you
+ * traverse the list in either direction, and makes deletion easier
+ * since a node can unlink itself without needing a separate
+ * "previous" tracking pointer during traversal. */
+typedef struct dllist {
+    VALUE val;
+    struct dllist *next;
+    struct dllist *prev;
+} dllnode;
+
+
+/* ------------------------------------------------------------------
+ * 1. CREATE a linked list (create a single new node).
+ *    dllnode* create(VALUE val);
+ *
+ *    Steps:
+ *    a. Dynamically allocate space for a new dllnode.
+ *    b. Check to make sure we didn't run out of memory.
+ *    c. Initialize the node's val field.
+ *    d. Initialize both the next and prev fields.
+ *    e. Return a pointer to the newly created dllnode.
+ * ------------------------------------------------------------------ */
+dllnode *create(VALUE val) {
+    dllnode *new = malloc(sizeof(dllnode));   // a. allocate
+
+    if (new == NULL) {                         // b. check for out-of-memory
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->val = val;                            // c. initialize val
+    new->next = NULL;                          // d. initialize next
+    new->prev = NULL;                          // d. initialize prev
+
+    return new;                                // e. return the new node
+}
+
+
+/* ------------------------------------------------------------------
+ * 2. SEARCH through a linked list to find an element.
+ *    bool find(dllnode* head, VALUE val);
+ *
+ *    Steps (same logic as the singly-linked case, using 'next'):
+ *    a. Create a traversal pointer pointing to the list's head.
+ *    b. If the current node's val field is what we're looking for,
+ *       report success.
+ *    c. If not, advance the traversal pointer via next and repeat.
+ *    d. If you reach the end of the list, report failure.
+ * ------------------------------------------------------------------ */
+bool find(dllnode *head, VALUE val) {
+    dllnode *cur = head;         // a. traversal pointer starts at head
+
+    while (cur != NULL) {        // d. stop when we fall off the end
+        if (cur->val == val) {   // b. found it
+            return true;
+        }
+        cur = cur->next;         // c. move forward
+    }
+
+    return false;                // d. not found
+}
+
+
+/* ------------------------------------------------------------------
+ * 3. INSERT a new node into the linked list (insert at the front).
+ *    dllnode* insert(dllnode* head, VALUE val);
+ *
+ *    Steps:
+ *    a. Dynamically allocate space for a new dllnode.
+ *    b. Check to make sure we didn't run out of memory.
+ *    c. Populate and insert the node at the beginning of the list
+ *       (set its val, point its next at the old head, and its
+ *       prev at NULL since it's now the first node).
+ *    d. Fix the prev pointer of the OLD head so it points back at
+ *       the new node (this is the step singly-linked lists don't need).
+ *    e. Return a pointer to the new head of the linked list.
+ * ------------------------------------------------------------------ */
+dllnode *insert(dllnode *head, VALUE val) {
+    dllnode *new = malloc(sizeof(dllnode));   // a. allocate
+
+    if (new == NULL) {                         // b. check for out-of-memory
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->val = val;          // c. populate...
+    new->next = head;        // c. ...and insert at the front
+    new->prev = NULL;        // c. new node is the first, so no prev
+
+    if (head != NULL) {      // d. fix the OLD head's prev pointer
+        head->prev = new;    //    (only if the list wasn't empty)
+    }
+
+    return new;               // e. new node is the new head
+}
+
+
+/* ------------------------------------------------------------------
+ * 4. DELETE a single element from a linked list.
+ *    dllnode* delete_node(dllnode* head, VALUE val);
+ *
+ *    Because each node knows both its neighbors, deletion doesn't
+ *    need a separate "prev" tracking pointer during the search --
+ *    the node being deleted already has direct access to both sides.
+ *
+ *    Steps:
+ *    a. Walk the list looking for the node with a matching val.
+ *    b. If not found, return head unchanged.
+ *    c. If the node has a predecessor, point that predecessor's
+ *       next past the deleted node (otherwise we're deleting the
+ *       head, so the head becomes the next node).
+ *    d. If the node has a successor, point that successor's prev
+ *       back past the deleted node.
+ *    e. Free the node and return the (possibly updated) head.
+ * ------------------------------------------------------------------ */
+dllnode *delete_node(dllnode *head, VALUE val) {
+    dllnode *cur = head;
+
+    while (cur != NULL && cur->val != val) {   // a. search
+        cur = cur->next;
+    }
+
+    if (cur == NULL) {         // b. not found
+        return head;
+    }
+
+    if (cur->prev != NULL) {          // c. relink the predecessor
+        cur->prev->next = cur->next;
+    } else {                          // c. deleting the head
+        head = cur->next;
+    }
+
+    if (cur->next != NULL) {          // d. relink the successor
+        cur->next->prev = cur->prev;
+    }
+
+    free(cur);                        // e. free the removed node
+    return head;
+}
+
+
+/* ------------------------------------------------------------------
+ * 5. DELETE an entire linked list.
+ *    void destroy(dllnode* head);
+ *
+ *    Steps:
+ *    a. Walk the list one node at a time.
+ *    b. Save a pointer to the next node before freeing the current one.
+ *    c. Free the current node.
+ *    d. Advance and repeat until the list is empty.
+ * ------------------------------------------------------------------ */
+void destroy(dllnode *head) {
+    dllnode *cur = head;
+
+    while (cur != NULL) {
+        dllnode *next = cur->next;   // b. save next before freeing
+        free(cur);                   // c. free current node
+        cur = next;                  // d. advance
+    }
+}
+
+
+/* -------------------------- helpers for demo -------------------------- */
+void print_forward(dllnode *head) {
+    dllnode *cur = head;
+    printf("forward: ");
+    while (cur != NULL) {
+        printf("%d <-> ", cur->val);
+        cur = cur->next;
+    }
+    printf("NULL\n");
+}
+
+void print_backward(dllnode *tail) {
+    dllnode *cur = tail;
+    printf("backward: ");
+    while (cur != NULL) {
+        printf("%d <-> ", cur->val);
+        cur = cur->prev;
+    }
+    printf("NULL\n");
+}
+
+
+int main(void) {
+    /* 1. Create the first node */
+    dllnode *head = create(6);
+    printf("After create(6):\n");
+    print_forward(head);
+
+    /* 3. Insert more nodes at the front */
+    head = insert(head, 4);
+    head = insert(head, 2);
+    printf("\nAfter inserting 4, then 2 at the front:\n");
+    print_forward(head);   // 2 <-> 4 <-> 6 <-> NULL
+
+    /* Find the tail so we can demonstrate backward traversal */
+    dllnode *tail = head;
+    while (tail->next != NULL) {
+        tail = tail->next;
+    }
+    print_backward(tail);  // 6 <-> 4 <-> 2 <-> NULL
+
+    /* 2. Search for a couple of values */
+    printf("\nSearching the list:\n");
+    printf("find(4): %s\n", find(head, 4) ? "found" : "not found");
+    printf("find(9): %s\n", find(head, 9) ? "found" : "not found");
+
+    /* 4. Delete a single node (interior, then head) */
+    head = delete_node(head, 4);
+    printf("\nAfter deleting 4 (interior node):\n");
+    print_forward(head);
+
+    head = delete_node(head, 2);
+    printf("\nAfter deleting 2 (the head):\n");
+    print_forward(head);
+
+    /* 5. Delete the entire list */
+    destroy(head);
+    head = NULL;
+    printf("\nAfter destroy(), list is empty. head = NULL\n");
+
+    return 0;
+}
+```
+
