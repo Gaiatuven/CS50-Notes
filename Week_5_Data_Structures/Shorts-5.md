@@ -155,3 +155,305 @@ This is a little annoying. And so as you might expect, there’s a shorter way!
 • First, it deference the pointer on the left side of the operator. • Second, it accesses the field on the right side of the operator.
 
 
+## Singly-Linked Lists
+
+
+So far in the course, we’ve only had one kind of data structure for representing collections of like values. 
+
+• structs, recall, give us “containers” for holding variables of different data types, typically. 
+
+• Arrays are great for element lookup, but unless we want to insert at the very end of the array, inserting elements is quite costly – remember insertion sort?
+
+Arrays also suffer from a great inflexibility – what happens if we need a larger array than we thought? 
+
+• Through clever use of pointers, dynamic memory allocation, and structs, we can put those two pieces together to develop a new kind of data structure that gives us the ability to grow and shrink a collection of like values to fit our needs.
+
+We call this combination of elements, when used in this way, a linked list. • A linked list node is a special kind of struct with two members: 
+
+• Data of some data type (int, char, float…) 
+• A pointer to another node of the same type
+• In this way, a set of nodes together can be thought of as forming a chain of elements that we can follow from beginning to end.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+// VALUE defines what type of data each node holds.
+// Change this to whatever type you need (int, double, char*, etc.)
+typedef int VALUE;
+
+// A self-referential struct: each node points to the next node of the
+// SAME type, which is how the nodes chain together into a list.
+typedef struct sllist {
+    VALUE val;
+    struct sllist *next;   // must say "struct sllist*" here, not "sllnode*",
+                            // because the typedef name doesn't exist yet
+} sllnode;
+
+// Create a single new node holding 'val', with next set to NULL
+sllnode *make_node(VALUE val) {
+    sllnode *node = malloc(sizeof(sllnode));
+    if (node == NULL) {
+        printf("Allocation failed\n");
+        exit(1);
+    }
+    node->val = val;
+    node->next = NULL;
+    return node;
+}
+
+// Add a new node to the front of the list, return the new head
+sllnode *push_front(sllnode *head, VALUE val) {
+    sllnode *node = make_node(val);
+    node->next = head;   // new node points to old head
+    return node;          // new node becomes the head
+}
+
+// Add a new node to the end of the list
+void push_back(sllnode *head, VALUE val) {
+    sllnode *node = make_node(val);
+    while (head->next != NULL) {   // walk to the last node
+        head = head->next;
+    }
+    head->next = node;              // attach new node at the end
+}
+
+// Print every value in the list, following the chain of 'next' pointers
+void print_list(sllnode *head) {
+    while (head != NULL) {
+        printf("%d -> ", head->val);
+        head = head->next;
+    }
+    printf("NULL\n");
+}
+
+// Free every node in the list (important! heap memory doesn't clean itself up)
+void free_list(sllnode *head) {
+    while (head != NULL) {
+        sllnode *tmp = head;
+        head = head->next;
+        free(tmp);
+    }
+}
+
+int main(void) {
+    // Start with one node
+    sllnode *head = make_node(10);
+
+    // Add nodes to the end
+    push_back(head, 20);
+    push_back(head, 30);
+
+    printf("List after push_back(20), push_back(30):\n");
+    print_list(head);
+
+    // Add a node to the front (this changes who "head" is)
+    head = push_front(head, 5);
+
+    printf("List after push_front(5):\n");
+    print_list(head);
+
+    // Always free heap-allocated nodes when done
+    free_list(head);
+    head = NULL;
+
+    return 0;
+}
+```
+
+
+linked-list Example 
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+typedef int VALUE;
+
+typedef struct sllist {
+    VALUE val;
+    struct sllist *next;
+} sllnode;
+
+
+/* ------------------------------------------------------------------
+ * 1. CREATE a linked list (specifically, create a single new node).
+ *    sllnode* create(VALUE val);
+ *
+ *    Steps:
+ *    a. Dynamically allocate space for a new sllnode.
+ *    b. Check to make sure we didn't run out of memory.
+ *    c. Initialize the node's val field.
+ *    d. Initialize the node's next field.
+ *    e. Return a pointer to the newly created sllnode.
+ * ------------------------------------------------------------------ */
+sllnode *create(VALUE val) {
+    sllnode *new = malloc(sizeof(sllnode));   // a. allocate
+
+    if (new == NULL) {                        // b. check for out-of-memory
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->val = val;                           // c. initialize val
+    new->next = NULL;                         // d. initialize next
+
+    return new;                               // e. return the new node
+}
+
+
+/* ------------------------------------------------------------------
+ * 2. SEARCH through a linked list to find an element.
+ *    bool find(sllnode* head, VALUE val);
+ *
+ *    Steps:
+ *    a. Create a traversal pointer pointing to the list's head.
+ *    b. If the current node's val field is what we're looking for,
+ *       report success.
+ *    c. If not, set the traversal pointer to the next pointer in the
+ *       list and go back to step b.
+ *    d. If you've reached the end of the list, report failure.
+ * ------------------------------------------------------------------ */
+bool find(sllnode *head, VALUE val) {
+    sllnode *cur = head;          // a. traversal pointer starts at head
+
+    while (cur != NULL) {         // d. stop when we fall off the end
+        if (cur->val == val) {    // b. found it
+            return true;
+        }
+        cur = cur->next;          // c. move to the next node
+    }
+
+    return false;                 // d. reached the end without finding it
+}
+
+
+/* ------------------------------------------------------------------
+ * 3. INSERT a new node into the linked list (insert at the front).
+ *    sllnode* insert(sllnode* head, VALUE val);
+ *
+ *    Steps:
+ *    a. Create the new node (using create()).
+ *    b. Point the new node's next at the current head.
+ *    c. Return the new node as the new head of the list.
+ * ------------------------------------------------------------------ */
+sllnode *insert(sllnode *head, VALUE val) {
+    sllnode *new = create(val);   // a. build the new node
+    new->next = head;             // b. link it in front of the old head
+    return new;                   // c. new head of the list
+}
+
+
+/* ------------------------------------------------------------------
+ * 4. DELETE a single element from a linked list.
+ *    sllnode* delete_node(sllnode* head, VALUE val);
+ *
+ *    Steps:
+ *    a. If the list is empty, there's nothing to delete — return head.
+ *    b. If the head itself holds the value, remember it, move head
+ *       to the next node, free the old head, and return the new head.
+ *    c. Otherwise, walk the list keeping a "previous" pointer, until
+ *       we find the node to delete or fall off the end.
+ *    d. Unlink the found node by pointing prev->next around it,
+ *       then free it.
+ *    e. Return the (possibly unchanged) head of the list.
+ * ------------------------------------------------------------------ */
+sllnode *delete_node(sllnode *head, VALUE val) {
+    if (head == NULL) {                 // a. empty list
+        return NULL;
+    }
+
+    if (head->val == val) {             // b. deleting the head node
+        sllnode *tmp = head;
+        head = head->next;
+        free(tmp);
+        return head;
+    }
+
+    sllnode *prev = head;
+    sllnode *cur = head->next;
+
+    while (cur != NULL) {               // c. search the rest of the list
+        if (cur->val == val) {
+            prev->next = cur->next;     // d. unlink cur
+            free(cur);
+            return head;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+
+    return head;                        // e. value not found, unchanged
+}
+
+
+/* ------------------------------------------------------------------
+ * 5. DELETE an entire linked list.
+ *    void destroy(sllnode* head);
+ *
+ *    Steps:
+ *    a. Walk the list one node at a time.
+ *    b. Before freeing a node, save a pointer to the next one so we
+ *       don't lose the rest of the list.
+ *    c. Free the current node.
+ *    d. Move on to the next node and repeat until the list is empty.
+ * ------------------------------------------------------------------ */
+void destroy(sllnode *head) {
+    sllnode *cur = head;
+
+    while (cur != NULL) {
+        sllnode *next = cur->next;   // b. save next before freeing
+        free(cur);                   // c. free current node
+        cur = next;                  // d. advance
+    }
+}
+
+
+/* -------------------------- helper for demo -------------------------- */
+void print_list(sllnode *head) {
+    sllnode *cur = head;
+    while (cur != NULL) {
+        printf("%d -> ", cur->val);
+        cur = cur->next;
+    }
+    printf("NULL\n");
+}
+
+
+int main(void) {
+    /* 1. Create the first node of the list */
+    sllnode *head = create(6);
+    printf("After create(6):\n");
+    print_list(head);
+
+    /* 3. Insert some more nodes at the front */
+    head = insert(head, 4);
+    head = insert(head, 2);
+    printf("\nAfter inserting 4, then 2 at the front:\n");
+    print_list(head);   // 2 -> 4 -> 6 -> NULL
+
+    /* 2. Search for a couple of values */
+    printf("\nSearching the list:\n");
+    printf("find(4): %s\n", find(head, 4) ? "found" : "not found");
+    printf("find(9): %s\n", find(head, 9) ? "found" : "not found");
+
+    /* 4. Delete a single node (including the head) */
+    head = delete_node(head, 4);       // delete a middle/interior value
+    printf("\nAfter deleting 4:\n");
+    print_list(head);
+
+    head = delete_node(head, 2);       // delete the current head
+    printf("\nAfter deleting 2 (the head):\n");
+    print_list(head);
+
+    /* 5. Delete the entire list */
+    destroy(head);
+    head = NULL;   // good practice: avoid a dangling pointer
+    printf("\nAfter destroy(), list is empty. head = NULL\n");
+
+    return 0;
+}
+```
+
+
