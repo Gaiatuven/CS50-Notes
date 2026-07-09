@@ -698,3 +698,183 @@ int main(void) {
 }
 ```
 
+## Stacks
+
+A stack is a special type of structure that can be used to maintain data in an organized way. 
+• This data structure is commonly implemented in one of two ways: as an array or as a linked list. 
+• In either case, the important rule is that when data is added to the stack, it sits “on top,” and so if an element needs to be removed, the most recently added element is the only element that can legally be removed. 
+
+### • Last in, first out (LIFO) Stacks (Data Structure) 
+
+• There are only two operations that may legally be performed on a stack.
+
+• Push: Add a new element to the top of the stack. 
+• Pop: Remove the most recently-added element from the top of the stack.
+
+```c
+#include <stdio.h>
+#include <stdbool.h>
+
+#define CAPACITY 5
+
+typedef int VALUE;
+
+/* Array-based stack: instead of nodes and pointers, we use a fixed-size
+ * array as the backing storage. 'top' is an index that tracks how many
+ * elements are currently on the stack (and where the next push goes).
+ * No malloc/free needed here for individual elements -- the whole
+ * stack lives in one contiguous block of memory. */
+typedef struct _stack {
+    VALUE array[CAPACITY];
+    int top;     // index of the next free slot; also equals the count
+} stack;
+
+
+/* ------------------------------------------------------------------
+ * Initialize / "create" a stack.
+ *
+ * Unlike linked lists, we don't need malloc for each element -- the
+ * array is already allocated as part of the struct. We just need to
+ * set 'top' to indicate the stack is empty.
+ * ------------------------------------------------------------------ */
+void init(stack *s) {
+    s->top = 0;   // 0 elements currently on the stack
+}
+
+
+/* ------------------------------------------------------------------
+ * Check whether the stack is empty or full.
+ * These checks guard every push/pop so we never read or write
+ * outside the bounds of the array.
+ * ------------------------------------------------------------------ */
+bool is_empty(stack *s) {
+    return s->top == 0;
+}
+
+bool is_full(stack *s) {
+    return s->top == CAPACITY;
+}
+
+
+/* ------------------------------------------------------------------
+ * PUSH a value onto the stack.
+ *
+ * Steps:
+ * a. Check if the stack is full -- if so, report failure (can't grow
+ *    an array-based stack past its fixed CAPACITY).
+ * b. Place the new value at the index 'top' points to.
+ * c. Increment 'top' so it points past the new element.
+ * d. Report success.
+ * ------------------------------------------------------------------ */
+bool push(stack *s, VALUE val) {
+    if (is_full(s)) {              // a. no room left
+        return false;
+    }
+
+    s->array[s->top] = val;        // b. place the value
+    s->top++;                      // c. advance top
+    return true;                   // d. success
+}
+
+
+/* ------------------------------------------------------------------
+ * POP the top value off the stack.
+ *
+ * Steps:
+ * a. Check if the stack is empty -- if so, report failure.
+ * b. Decrement 'top' so it points at the last pushed element.
+ * c. Read that element out through the out-parameter 'val'.
+ * d. Report success. (We don't need to erase the old array slot --
+ *    decrementing 'top' logically removes it; the next push will
+ *    overwrite it anyway.)
+ * ------------------------------------------------------------------ */
+bool pop(stack *s, VALUE *val) {
+    if (is_empty(s)) {              // a. nothing to pop
+        return false;
+    }
+
+    s->top--;                       // b. move top back onto the last element
+    *val = s->array[s->top];        // c. hand the value back to the caller
+    return true;                    // d. success
+}
+
+
+/* ------------------------------------------------------------------
+ * PEEK at the top value without removing it.
+ * ------------------------------------------------------------------ */
+bool peek(stack *s, VALUE *val) {
+    if (is_empty(s)) {
+        return false;
+    }
+
+    *val = s->array[s->top - 1];    // top-1, since 'top' points PAST the last element
+    return true;
+}
+
+
+/* ------------------------------------------------------------------
+ * "Destroy" the stack.
+ *
+ * Since this is array-based (no malloc'd nodes), there's nothing to
+ * free individually -- if 's' itself was heap-allocated, you'd just
+ * free(s) once. Here we just reset it, for symmetry with the
+ * linked-list destroy().
+ * ------------------------------------------------------------------ */
+void destroy(stack *s) {
+    s->top = 0;
+}
+
+
+int main(void) {
+    stack s;
+    init(&s);
+
+    printf("New stack created. is_empty: %s\n",
+           is_empty(&s) ? "true" : "false");
+
+    /* Push some values */
+    push(&s, 10);
+    push(&s, 20);
+    push(&s, 30);
+    printf("\nPushed 10, 20, 30.\n");
+
+    /* Peek at the top without removing it */
+    VALUE top_val;
+    if (peek(&s, &top_val)) {
+        printf("peek(): %d\n", top_val);
+    }
+
+    /* Pop everything off and print in LIFO order */
+    printf("\nPopping everything off:\n");
+    VALUE popped;
+    while (pop(&s, &popped)) {
+        printf("popped: %d\n", popped);
+    }
+
+    /* Try popping from an empty stack */
+    if (!pop(&s, &popped)) {
+        printf("\nStack is empty, pop() correctly failed.\n");
+    }
+
+    /* Fill the stack to CAPACITY and try to overfill it */
+    printf("\nFilling to capacity (%d):\n", CAPACITY);
+    for (int i = 1; i <= CAPACITY; i++) {
+        push(&s, i * 100);
+        printf("pushed %d\n", i * 100);
+    }
+    if (!push(&s, 999)) {
+        printf("Stack is full, push(999) correctly failed.\n");
+    }
+
+    destroy(&s);
+    printf("\nStack destroyed (reset). is_empty: %s\n",
+           is_empty(&s) ? "true" : "false");
+
+    return 0;
+}
+```
+
+
+
+
+
