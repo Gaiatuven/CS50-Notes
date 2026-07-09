@@ -1274,3 +1274,283 @@ int main(void) {
     return 0;
 }
 ```
+
+
+## Hash Tables
+
+
+• Hash tables combine the random access ability of an array with the dynamism of a linked list. 
+• This means (assuming we define our hash table well): • Insertion can start to tend toward q(1)
+• Deletion can start to tend toward q(1) 
+• Lookup can start to tend toward q(1) 
+• We’re gaining the advantages of both types of data structure, while mitigating the disadvantages.
+
+• To get this performance upgrade, we create a new structure whereby when we insert data into the structure, the data itself gives us a clue about where we will find the data, should we need to later look it up. 
+
+• The trade off is that hash tables are not great at ordering or sorting data, but if we don’t care about that, then we’re good to go!
+
+• A hash table amounts to a combination of two things with which we’re quite familiar. 
+• First, a hash function, which returns an nonnegative integer value called a hash code. 
+• Second, an array capable of storing data of the type we wish to place into the data structure. 
+• The idea is that we run our data through the hash function, and then store the data in the element of the array represented by the returned hash code.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define HASH_MAX 10   // number of buckets in the table
+
+typedef int VALUE;
+
+/* Each bucket is a linked list of entries. When two different keys
+ * hash to the same bucket index (a "collision"), we just chain them
+ * together in that bucket's list instead of overwriting each other. */
+typedef struct _entry {
+    char *key;
+    VALUE val;
+    struct _entry *next;
+} entry;
+
+/* The table itself: an array of bucket "head" pointers. Each slot
+ * either points to NULL (empty bucket) or the first entry in that
+ * bucket's chain. */
+typedef struct _hashtable {
+    entry *buckets[HASH_MAX];
+} hashtable;
+
+
+/* ------------------------------------------------------------------
+ * HASH a string into a bucket index.
+ *
+ * This is a simple additive hash: sum up every character's value,
+ * then take it mod HASH_MAX so the result always fits within the
+ * bucket array's bounds (0 .. HASH_MAX-1).
+ * ------------------------------------------------------------------ */
+unsigned int hash(char *str) {
+    int sum = 0;
+    for (int j = 0; str[j] != '\0'; j++) {
+        sum += str[j];
+    }
+    return sum % HASH_MAX;
+}
+
+
+/* ------------------------------------------------------------------
+ * CREATE / initialize a hash table.
+ *
+ * Every bucket starts out empty (NULL), meaning no entries hash to
+ * it yet.
+ * ------------------------------------------------------------------ */
+void init(hashtable *t) {
+    for (int i = 0; i < HASH_MAX; i++) {
+        t->buckets[i] = NULL;
+    }
+}
+
+
+/* ------------------------------------------------------------------
+ * INSERT a key/value pair into the table.
+ *
+ * Steps:
+ * a. Compute which bucket this key belongs in.
+ * b. Allocate and check a new entry node.
+ * c. Copy the key (so the table owns its own memory for it) and
+ *    store the value.
+ * d. Insert at the FRONT of that bucket's chain (O(1), and simplest --
+ *    order within a bucket doesn't matter for correctness).
+ * ------------------------------------------------------------------ */
+void insert(hashtable *t, char *key, VALUE val) {
+    unsigned int idx = hash(key);           // a. find the bucket
+
+    entry *new = malloc(sizeof(entry));     // b. allocate
+    if (new == NULL) {
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->key = malloc(strlen(key) + 1);     // c. copy the key string
+    strcpy(new->key, key);
+    new->val = val;
+
+    new->next = t->buckets[idx];            // d. push to front of chain
+    t->buckets[idx] = new;
+}
+
+
+/* ------------------------------------------------------------------
+ * FIND a value by key.
+ *
+ * Steps:
+ * a. Compute the bucket this key would be in.
+ * b. Walk that bucket's chain comparing keys with strcmp.
+ * c. If found, hand the value back through the out-parameter.
+ * d. If we reach the end of the chain without a match, report failure.
+ * ------------------------------------------------------------------ */
+bool find(hashtable *t, char *key, VALUE *val) {
+    unsigned int idx = hash(key);           // a. locate the bucket
+    entry *cur = t->buckets[idx];
+
+    while (cur != NULL) {                   // b. walk the chain
+        if (strcmp(cur->key, key) == 0) {   // c. match found
+            *val = cur->val;
+            return true;
+        }
+        cur = cur->next;
+    }
+
+    return false;                           // d. not found
+}
+
+
+/* ------------------------------------------------------------------
+ * DELETE a key/value pair from the table.
+ *
+ * Steps:
+ * a. Compute the bucket.
+ * b. Walk the chain with a "prev" tracking pointer (same pattern as
+ *    singly-linked list deletion) until we find a matching key.
+ * c. Unlink the entry: either it's the head of the bucket (update
+ *    the bucket pointer itself) or it's mid-chain (update prev->next).
+ * d. Free the entry's key string and the entry itself.
+ * ------------------------------------------------------------------ */
+bool delete_key(hashtable *t, char *key) {
+    unsigned int idx = hash(key);           // a. locate the bucket
+    entry *cur = t->buckets[idx];
+    entry *prev = NULL;
+
+    while (cur != NULL) {                   // b. search the chain
+        if (strcmp(cur->key, key) == 0) {
+            if (prev == NULL) {             // c. deleting the bucket's head
+                t->buckets[idx] = cur->next;
+            } else {                        // c. deleting mid-chain
+                prev->next = cur->next;
+            }
+            free(cur->key);                 // d. free the key string
+            free(cur);                      // d. free the entry
+            return true;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+
+    return false;                           // key not found
+}
+
+
+/* ------------------------------------------------------------------
+ * DESTROY the entire table: free every entry in every bucket.
+ * ------------------------------------------------------------------ */
+void destroy(hashtable *t) {
+    for (int i = 0; i < HASH_MAX; i++) {
+        entry *cur = t->buckets[i];
+        while (cur != NULL) {
+            entry *next = cur->next;
+            free(cur->key);
+            free(cur);
+            cur = next;
+        }
+        t->buckets[i] = NULL;
+    }
+}
+
+
+/* -------------------------- helper for demo -------------------------- */
+void print_table(hashtable *t) {
+    for (int i = 0; i < HASH_MAX; i++) {
+        printf("bucket[%d]: ", i);
+        entry *cur = t->buckets[i];
+        while (cur != NULL) {
+            printf("(%s, %d) -> ", cur->key, cur->val);
+            cur = cur->next;
+        }
+        printf("NULL\n");
+    }
+}
+
+
+int main(void) {
+    hashtable t;
+    init(&t);
+
+    printf("Empty table:\n");
+    print_table(&t);
+
+    /* Insert some key/value pairs */
+    insert(&t, "apple", 1);
+    insert(&t, "banana", 2);
+    insert(&t, "cherry", 3);
+    insert(&t, "date", 4);
+
+    printf("\nAfter inserting apple, banana, cherry, date:\n");
+    printf("hash(\"apple\") = %u\n", hash("apple"));
+    printf("hash(\"banana\") = %u\n", hash("banana"));
+    printf("hash(\"cherry\") = %u\n", hash("cherry"));
+    printf("hash(\"date\") = %u\n", hash("date"));
+    print_table(&t);
+
+    /* Look up some keys */
+    VALUE v;
+    printf("\nfind(\"banana\"): %s", find(&t, "banana", &v) ? "found, " : "not found\n");
+    if (find(&t, "banana", &v)) printf("val = %d\n", v);
+
+    printf("find(\"grape\"): %s\n", find(&t, "grape", &v) ? "found" : "not found");
+
+    /* Delete a key and confirm it's gone */
+    delete_key(&t, "banana");
+    printf("\nAfter deleting \"banana\":\n");
+    print_table(&t);
+    printf("find(\"banana\"): %s\n", find(&t, "banana", &v) ? "found" : "not found");
+
+    /* Demonstrate a real collision: "cat", "act", and "tac" all hash
+     * to the same bucket, since this hash function just sums
+     * character values (order doesn't matter, so anagrams collide) */
+    insert(&t, "cat", 100);
+    insert(&t, "act", 200);
+    insert(&t, "tac", 300);
+    printf("\nAfter inserting cat, act, tac (all hash to bucket %u):\n", hash("cat"));
+    print_table(&t);
+
+    printf("find(\"act\"): %s, ", find(&t, "act", &v) ? "found" : "not found");
+    printf("val = %d\n", v);
+
+    delete_key(&t, "act");
+    printf("After deleting \"act\" (middle of the chain):\n");
+    print_table(&t);
+    printf("find(\"cat\"): %s -- still reachable despite deleting a chain-mate\n",
+           find(&t, "cat", &v) ? "found" : "not found");
+
+    /* Clean up */
+    destroy(&t);
+    printf("\nTable destroyed.\n");
+    print_table(&t);
+
+    return 0;
+}
+```
+
+• A collision occurs when two pieces of data, when run through the hash function, yield the same hash code. 
+• Presumably we want to store both pieces of data in the hash table, so we shouldn’t simply overwrite the data that happened to be placed in there first. 
+• We need to find a way to get both elements into the hash table while trying to preserve quick insertion and lookup.
+
+• Resolving collisions: Linear probing
+• In this method, if we have a collision, we try to place the data in the next consecutive element in the array (wrapping around to the beginning if necessary) until we find a vacancy. 
+• That way, if we don’t find what we’re looking for in the first location, at least hopefully the element is somewhere nearby.
+
+• Resolving collisions: Linear probing 
+• Linear probing is subject to a problem called clustering. Once there’s a miss, two adjacent cells will contain data, making it more likely in the future that the cluster will grow. 
+• Even if we switch to another probing technique, we’re still limited. We can only store as much data as we have locations in our array.
+
+• Resolving collisions: Chaining 
+• Let’s start to pull it all together. 
+• What if instead of each element of the array holding just one piece of data, it held multiple pieces of data?
+• If each element of the array is a pointer to the head of a linked list, then multiple pieces of data can yield the same hash code and we’ll be able to store it all!
+
+• Resolving collisions: Chaining 
+
+• We’ve eliminated clustering.
+• We know from experience with linked lists that insertion (and creation, if necessary) into a linked list is an O(1) operation.
+• For lookup, we only need to search through what is hopefully a small list, since we’re distributing what would otherwise be one huge list across n lists.
+
+
