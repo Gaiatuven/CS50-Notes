@@ -876,5 +876,401 @@ int main(void) {
 
 
 
+## Queues
+
+A queue is a special type of structure that can be used to maintain data in an organized way. 
+
+• This data structure is commonly implemented in one of two ways: as an array or as a linked list. 
+• In either case, the important rule is that when data is added to the queue, it is tacked onto the end, and so if an element needs to be removed, the element at the front is the only element that can legally be removed. 
+
+### • First in, first out (FIFO)
+
+```c
+#include <stdio.h>
+#include <stdbool.h>
+
+#define CAPACITY 5
+
+typedef int VALUE;
+
+/* Array-based queue, implemented as a CIRCULAR BUFFER.
+ *
+ * Why circular? A naive array queue would shift every element left
+ * after each dequeue, which is slow (O(n)). Instead, we let 'front'
+ * wrap around the end of the array back to index 0 using modulo
+ * arithmetic, so both enqueue and dequeue are O(1).
+ *
+ * 'front' = index of the oldest element (next to be dequeued)
+ * 'size'  = how many elements are currently stored
+ * (the "rear" index isn't stored directly -- it's computed as
+ *  (front + size) % CAPACITY whenever we need it) */
+typedef struct _queue {
+    VALUE array[CAPACITY];
+    int front;
+    int size;
+} queue;
 
 
+/* ------------------------------------------------------------------
+ * Initialize / "create" a queue.
+ * ------------------------------------------------------------------ */
+void init(queue *q) {
+    q->front = 0;
+    q->size = 0;
+}
+
+
+bool is_empty(queue *q) {
+    return q->size == 0;
+}
+
+bool is_full(queue *q) {
+    return q->size == CAPACITY;
+}
+
+
+/* ------------------------------------------------------------------
+ * ENQUEUE a value (add to the back of the line).
+ *
+ * Steps:
+ * a. Check if the queue is full -- if so, report failure.
+ * b. Compute the index of the next free slot: (front + size) % CAPACITY.
+ *    The modulo is what lets this index "wrap around" to 0 once it
+ *    reaches the end of the array.
+ * c. Store the value there.
+ * d. Increment size to reflect the new element.
+ * e. Report success.
+ * ------------------------------------------------------------------ */
+bool enqueue(queue *q, VALUE val) {
+    if (is_full(q)) {                          // a. no room left
+        return false;
+    }
+
+    int rear = (q->front + q->size) % CAPACITY; // b. wrap-around index
+    q->array[rear] = val;                        // c. store the value
+    q->size++;                                   // d. one more element
+    return true;                                 // e. success
+}
+
+
+/* ------------------------------------------------------------------
+ * DEQUEUE a value (remove from the front of the line).
+ *
+ * Steps:
+ * a. Check if the queue is empty -- if so, report failure.
+ * b. Read the value out of the 'front' slot through the out-parameter.
+ * c. Advance 'front' forward by one, wrapping around with modulo.
+ * d. Decrement size.
+ * e. Report success.
+ * ------------------------------------------------------------------ */
+bool dequeue(queue *q, VALUE *val) {
+    if (is_empty(q)) {                    // a. nothing to remove
+        return false;
+    }
+
+    *val = q->array[q->front];            // b. read the oldest element
+    q->front = (q->front + 1) % CAPACITY; // c. advance front, wrap if needed
+    q->size--;                            // d. one fewer element
+    return true;                          // e. success
+}
+
+
+/* ------------------------------------------------------------------
+ * PEEK at the front value without removing it.
+ * ------------------------------------------------------------------ */
+bool peek(queue *q, VALUE *val) {
+    if (is_empty(q)) {
+        return false;
+    }
+
+    *val = q->array[q->front];
+    return true;
+}
+
+
+/* ------------------------------------------------------------------
+ * "Destroy" the queue. Array-based, so nothing to individually free --
+ * just reset it (mirrors destroy() for the array-based stack).
+ * ------------------------------------------------------------------ */
+void destroy(queue *q) {
+    q->front = 0;
+    q->size = 0;
+}
+
+
+int main(void) {
+    queue q;
+    init(&q);
+
+    printf("New queue created. is_empty: %s\n",
+           is_empty(&q) ? "true" : "false");
+
+    /* Enqueue some values */
+    enqueue(&q, 10);
+    enqueue(&q, 20);
+    enqueue(&q, 30);
+    printf("\nEnqueued 10, 20, 30.\n");
+
+    VALUE front_val;
+    if (peek(&q, &front_val)) {
+        printf("peek(): %d\n", front_val);   // should be 10 (FIFO)
+    }
+
+    /* Dequeue two, then enqueue two more -- this forces the circular
+     * wrap-around, since front will advance past where it started */
+    VALUE out;
+    dequeue(&q, &out);
+    printf("\ndequeued: %d\n", out);
+    dequeue(&q, &out);
+    printf("dequeued: %d\n", out);
+
+    enqueue(&q, 40);
+    enqueue(&q, 50);
+    enqueue(&q, 60);   // this one wraps around to index 0 internally
+    printf("enqueued 40, 50, 60 (60 wraps around the array internally)\n");
+
+    /* Drain the rest in FIFO order to prove correctness despite wrap */
+    printf("\nDraining the queue (should print 30, 40, 50, 60 in order):\n");
+    while (dequeue(&q, &out)) {
+        printf("dequeued: %d\n", out);
+    }
+
+    if (!dequeue(&q, &out)) {
+        printf("\nQueue is empty, dequeue() correctly failed.\n");
+    }
+
+    /* Fill to capacity and try to overfill */
+    printf("\nFilling to capacity (%d):\n", CAPACITY);
+    for (int i = 1; i <= CAPACITY; i++) {
+        enqueue(&q, i * 100);
+        printf("enqueued %d\n", i * 100);
+    }
+    if (!enqueue(&q, 999)) {
+        printf("Queue is full, enqueue(999) correctly failed.\n");
+    }
+
+    destroy(&q);
+    printf("\nQueue destroyed (reset). is_empty: %s\n",
+           is_empty(&q) ? "true" : "false");
+
+    return 0;
+}
+```
+
+
+### Linked list-based implementation
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+typedef int VALUE;
+
+/* Each node in this queue is doubly-linked (next AND prev), which is
+ * what lets us add to the rear and remove from the front in O(1) --
+ * without a 'prev' pointer, removing from the front is easy, but a
+ * singly-linked list can't cheaply find "the node before the tail"
+ * if it ever needed to shrink from that end.
+ *
+ * Note: unlike the array-based version, there's no separate "queue"
+ * struct holding metadata -- each node doubles as a piece of the
+ * queue itself. Because of that, we need to track the FRONT and REAR
+ * pointers *outside* the nodes (in main, passed around by reference),
+ * since no single node knows where the whole queue begins and ends. */
+typedef struct _queue {
+    VALUE val;
+    struct _queue *prev;
+    struct _queue *next;
+} queue;
+
+
+/* ------------------------------------------------------------------
+ * CREATE a single new node.
+ *
+ * Steps:
+ * a. Dynamically allocate space for a new node.
+ * b. Check to make sure we didn't run out of memory.
+ * c. Initialize the node's val field.
+ * d. Initialize both next and prev to NULL.
+ * e. Return a pointer to the newly created node.
+ * ------------------------------------------------------------------ */
+queue *create(VALUE val) {
+    queue *new = malloc(sizeof(queue));   // a. allocate
+
+    if (new == NULL) {                     // b. check for out-of-memory
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->val = val;    // c. initialize val
+    new->next = NULL;  // d. initialize next
+    new->prev = NULL;  // d. initialize prev
+
+    return new;        // e. return the new node
+}
+
+
+/* ------------------------------------------------------------------
+ * ENQUEUE a value (add to the rear of the queue).
+ *
+ * We take 'front' and 'rear' as pointers-to-pointers (queue**) because
+ * this function may need to change what the CALLER's front/rear
+ * variables point to (e.g. enqueueing into an empty queue sets both).
+ *
+ * Steps:
+ * a. Create the new node.
+ * b. If the queue is currently empty, the new node becomes both
+ *    the front and the rear.
+ * c. Otherwise, link the new node in after the current rear:
+ *    old rear's next -> new node, new node's prev -> old rear.
+ * d. Update rear to point at the new node.
+ * ------------------------------------------------------------------ */
+void enqueue(queue **front, queue **rear, VALUE val) {
+    queue *new = create(val);        // a. build the new node
+
+    if (*front == NULL) {            // b. queue was empty
+        *front = new;
+        *rear = new;
+        return;
+    }
+
+    (*rear)->next = new;             // c. link old rear -> new node
+    new->prev = *rear;               // c. new node -> old rear
+    *rear = new;                     // d. new node is the new rear
+}
+
+
+/* ------------------------------------------------------------------
+ * DEQUEUE a value (remove from the front of the queue).
+ *
+ * Steps:
+ * a. If the queue is empty, report failure.
+ * b. Read the front node's val out through the out-parameter.
+ * c. Advance front to the next node.
+ * d. If the queue is now empty (front became NULL), also clear rear.
+ *    Otherwise, clear the new front's prev pointer (it has no
+ *    predecessor anymore).
+ * e. Free the old front node and report success.
+ * ------------------------------------------------------------------ */
+bool dequeue(queue **front, queue **rear, VALUE *val) {
+    if (*front == NULL) {            // a. nothing to remove
+        return false;
+    }
+
+    queue *old_front = *front;
+    *val = old_front->val;           // b. hand back the value
+
+    *front = old_front->next;        // c. advance front
+
+    if (*front == NULL) {            // d. queue is now empty
+        *rear = NULL;
+    } else {
+        (*front)->prev = NULL;       // d. new front has no predecessor
+    }
+
+    free(old_front);                 // e. free the removed node
+    return true;                     // e. success
+}
+
+
+/* ------------------------------------------------------------------
+ * PEEK at the front value without removing it.
+ * ------------------------------------------------------------------ */
+bool peek(queue *front, VALUE *val) {
+    if (front == NULL) {
+        return false;
+    }
+
+    *val = front->val;
+    return true;
+}
+
+
+/* ------------------------------------------------------------------
+ * DESTROY the entire queue.
+ *
+ * Steps:
+ * a. Walk the list one node at a time from the front.
+ * b. Save a pointer to the next node before freeing the current one.
+ * c. Free the current node.
+ * d. Advance and repeat until the list is empty.
+ * ------------------------------------------------------------------ */
+void destroy(queue *front) {
+    queue *cur = front;
+
+    while (cur != NULL) {
+        queue *next = cur->next;   // b. save next before freeing
+        free(cur);                 // c. free current node
+        cur = next;                // d. advance
+    }
+}
+
+
+/* -------------------------- helper for demo -------------------------- */
+void print_queue(queue *front) {
+    queue *cur = front;
+    printf("front -> ");
+    while (cur != NULL) {
+        printf("%d -> ", cur->val);
+        cur = cur->next;
+    }
+    printf("rear\n");
+}
+
+
+int main(void) {
+    /* An empty queue is represented by two NULL pointers */
+    queue *front = NULL;
+    queue *rear = NULL;
+
+    printf("New queue created (front and rear are NULL).\n");
+
+    /* Enqueue some values */
+    enqueue(&front, &rear, 10);
+    enqueue(&front, &rear, 20);
+    enqueue(&front, &rear, 30);
+    printf("\nEnqueued 10, 20, 30:\n");
+    print_queue(front);
+
+    VALUE front_val;
+    if (peek(front, &front_val)) {
+        printf("peek(): %d\n", front_val);   // should be 10 (FIFO)
+    }
+
+    /* Dequeue a couple, then enqueue more, to prove front/rear
+     * bookkeeping stays correct as the queue changes shape */
+    VALUE out;
+    dequeue(&front, &rear, &out);
+    printf("\ndequeued: %d\n", out);
+    print_queue(front);
+
+    enqueue(&front, &rear, 40);
+    printf("\nenqueued 40:\n");
+    print_queue(front);
+
+    /* Drain the queue completely */
+    printf("\nDraining the queue:\n");
+    while (dequeue(&front, &rear, &out)) {
+        printf("dequeued: %d\n", out);
+    }
+
+    if (!dequeue(&front, &rear, &out)) {
+        printf("\nQueue is empty, dequeue() correctly failed.\n");
+    }
+
+    /* Rebuild it and then destroy it wholesale */
+    enqueue(&front, &rear, 100);
+    enqueue(&front, &rear, 200);
+    enqueue(&front, &rear, 300);
+    printf("\nRebuilt queue:\n");
+    print_queue(front);
+
+    destroy(front);
+    front = NULL;
+    rear = NULL;
+    printf("\nQueue destroyed. front and rear reset to NULL.\n");
+
+    return 0;
+}
+```
