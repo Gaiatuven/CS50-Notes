@@ -1554,3 +1554,209 @@ int main(void) {
 • For lookup, we only need to search through what is hopefully a small list, since we’re distributing what would otherwise be one huge list across n lists.
 
 
+### Tries 
+
+• We have seen a few data structures that handle the mapping of key-value pairs. 
+
+• Arrays: The key is the element index, the value is the data at that location. 
+
+• Hash tables: The key is the hash code of the data, the value is a linked list of data hashing to that hash code. 
+
+• What about a slightly different kind of data structure where the key is guaranteed to be unique, and the value could be as simple as a Boolean that tells you whether the data exists in the structure?
+
+• Tries combine structures and pointers together to store data in an interesting way. 
+• The data to be searched for in the trie is now a roadmap. 
+• If you can follow the map from beginning to end, the data exists in the trie.
+• If you can’t, it doesn’t. 
+• Unlike with a hash table, there are no collisions, and no two pieces of data (unless they are identical) have the same path.
+
+• Let’s map key-value pairs where the keys are four-digit years (YYYY) and the values are names of universities founded during those years. 
+• In a trie, the paths from a central root node to a leaf node (where the school names would be), would be labeled with digits of the year.
+• Each node on the path from root to leaf could have 10 pointers emanating from it, one for each digit.
+
+To insert an element into the trie, simply build the correct path from the root to the leaf.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+/* A trie (aka "prefix tree") stores keys one character at a time,
+ * where each character selects which child pointer to follow next.
+ * Here, each node has 10 possible children -- one per digit '0'-'9' --
+ * so this trie is meant to be keyed by strings of digits, e.g. a
+ * student/campus ID number that maps to a university name.
+ *
+ * 'university' holds the name associated with the digit-string that
+ * leads to this node. An empty string means "no key ends here" --
+ * this node might just be a waypoint on the way to a longer key. */
+typedef struct _trie {
+    char university[20];
+    struct _trie *paths[10];
+} trie;
+
+
+/* ------------------------------------------------------------------
+ * CREATE a single new trie node.
+ *
+ * Steps:
+ * a. Dynamically allocate space for a new node.
+ * b. Check to make sure we didn't run out of memory.
+ * c. Initialize 'university' to empty (no key ends here yet).
+ * d. Initialize every entry in 'paths' to NULL (no children yet).
+ * e. Return a pointer to the newly created node.
+ * ------------------------------------------------------------------ */
+trie *create(void) {
+    trie *new = malloc(sizeof(trie));   // a. allocate
+
+    if (new == NULL) {                   // b. check for out-of-memory
+        printf("Error: out of memory\n");
+        exit(1);
+    }
+
+    new->university[0] = '\0';           // c. empty = "not a terminal node"
+
+    for (int i = 0; i < 10; i++) {       // d. no children yet
+        new->paths[i] = NULL;
+    }
+
+    return new;                          // e. return the new node
+}
+
+
+/* ------------------------------------------------------------------
+ * INSERT a digit-string key with its associated university name.
+ *
+ * Steps:
+ * a. Start a traversal pointer at the root.
+ * b. For each character in the key, convert it to a digit index (0-9).
+ * c. If the child for that digit doesn't exist yet, create it.
+ * d. Move the traversal pointer down into that child.
+ * e. After consuming every character, store the university name at
+ *    the node we've landed on -- this node now marks the END of a key.
+ * ------------------------------------------------------------------ */
+void insert(trie *root, char *key, char *university) {
+    trie *cur = root;                       // a. start at the root
+
+    for (int i = 0; key[i] != '\0'; i++) {
+        int idx = key[i] - '0';             // b. char '0'-'9' -> index 0-9
+
+        if (cur->paths[idx] == NULL) {      // c. create the path if missing
+            cur->paths[idx] = create();
+        }
+
+        cur = cur->paths[idx];              // d. descend into that child
+    }
+
+    strncpy(cur->university, university, sizeof(cur->university) - 1);
+    cur->university[sizeof(cur->university) - 1] = '\0';   // e. mark the end
+}
+
+
+/* ------------------------------------------------------------------
+ * FIND the university name associated with a digit-string key.
+ *
+ * Steps:
+ * a. Start a traversal pointer at the root.
+ * b. For each character in the key, follow the corresponding path.
+ * c. If a needed path doesn't exist, the key was never inserted --
+ *    report failure immediately.
+ * d. After consuming every character, check whether this node is
+ *    actually a terminal node (non-empty university) -- we might have
+ *    landed on a valid PATH that was only ever a prefix of a longer
+ *    key, never inserted as a key itself.
+ * e. If terminal, hand back the university name and report success.
+ * ------------------------------------------------------------------ */
+bool find(trie *root, char *key, char *university_out) {
+    trie *cur = root;                       // a. start at the root
+
+    for (int i = 0; key[i] != '\0'; i++) {
+        int idx = key[i] - '0';             // b. char -> digit index
+
+        if (cur->paths[idx] == NULL) {      // c. path doesn't exist
+            return false;
+        }
+
+        cur = cur->paths[idx];
+    }
+
+    if (cur->university[0] == '\0') {       // d. reached a node, but it's
+        return false;                       //    only a prefix, not a key
+    }
+
+    strcpy(university_out, cur->university); // e. success
+    return true;
+}
+
+
+/* ------------------------------------------------------------------
+ * DESTROY an entire trie.
+ *
+ * Tries are naturally recursive structures, so destruction is
+ * recursive too:
+ * a. For each of the 10 possible children, if it exists, recursively
+ *    destroy that subtree first.
+ * b. Once all children are freed, free this node itself.
+ * ------------------------------------------------------------------ */
+void destroy(trie *root) {
+    if (root == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < 10; i++) {   // a. destroy every child subtree
+        if (root->paths[i] != NULL) {
+            destroy(root->paths[i]);
+        }
+    }
+
+    free(root);                       // b. free this node
+}
+
+
+int main(void) {
+    trie *root = create();
+
+    /* Insert a few "ID -> university" mappings */
+    insert(root, "123", "Stanford");
+    insert(root, "124", "Berkeley");
+    insert(root, "1250", "MIT");
+    insert(root, "9", "Yale");
+
+    char name[20];
+
+    printf("find(\"123\"): %s\n",
+           find(root, "123", name) ? name : "not found");
+
+    printf("find(\"124\"): %s\n",
+           find(root, "124", name) ? name : "not found");
+
+    printf("find(\"1250\"): %s\n",
+           find(root, "1250", name) ? name : "not found");
+
+    /* "125" was never inserted as a key itself -- only as a PREFIX
+     * of "1250" -- so it should correctly report "not found" */
+    printf("find(\"125\"): %s\n",
+           find(root, "125", name) ? name : "not found (it's only a prefix)");
+
+    /* A key that was never inserted at all */
+    printf("find(\"999\"): %s\n",
+           find(root, "999", name) ? name : "not found");
+
+    printf("find(\"9\"): %s\n",
+           find(root, "9", name) ? name : "not found");
+
+    destroy(root);
+    printf("\nTrie destroyed.\n");
+
+    return 0;
+}
+```
+
+- `insert` walks character-by-character, creating a new child only when a path is missing.
+- `find` has to check _two_ separate things at the end: did every step of the path exist (`paths[idx] != NULL`), _and_ is this specific node actually marked as the end of a key (`university[0] != '\0'`)? Missing either check gives you a bug — the first misses keys that were never inserted, the second wrongly accepts prefixes of longer keys as if they were keys themselves.
+- `destroy` is naturally recursive, since a trie is a tree of up to 10 children per node rather than a single `next` pointer — you have to free every subtree before freeing the node that owns them.
+
+
+#### To search for an element in the trie, use successive digits to navigate from the root, and if you can make it to the end without hitting a dead end (a NULL pointer), you’ve found it.
+
