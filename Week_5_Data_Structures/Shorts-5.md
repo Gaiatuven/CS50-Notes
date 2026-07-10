@@ -1760,3 +1760,80 @@ int main(void) {
 
 #### To search for an element in the trie, use successive digits to navigate from the root, and if you can make it to the end without hitting a dead end (a NULL pointer), you’ve found it.
 
+
+## Data Structures Summary
+
+• By this point we’ve now examined four different ways to store sets of data: 
+	• Arrays • Linked lists • Hash tables 
+	• Tries • There are even some variations on these (trees and heaps, quite similar to tries, stacks and queues quite similar to arrays or linked lists, etc.) but this will generally cover most of what we’re looking at in C.
+
+
+#### • Arrays • Insertion is bad – lots of shifting to fit an element in the middle
+
+• Deletion is bad – lots of shifting after removing an element 
+• Lookup is great – random access, constant time 
+• Relatively easy to sort • Relatively small size-wise 
+• Stuck with a fixed size, no flexibility
+
+- **Lookup**: your array-based `stack`/`queue` access any element via `array[i]` directly — O(1). Your linked lists (`sllnode`, `dllnode`) have no such shortcut; finding the 5th element means walking `next` five times — O(n).
+- **Insertion/deletion in the middle**: arrays would need every subsequent element shifted over one slot to open (or close) a gap. Your linked-list `insert`/`delete_node` functions never shift anything — they just rewire a couple of pointers, regardless of where in the list the change happens.
+- **Fixed size**: your `stack_array.c` and `queue_array.c` both hit a hard wall at `CAPACITY` and `push`/`enqueue` return `false` once full. Your linked structures never hit that ceiling — they just `malloc` another node.
+- **Size/overhead**: an array node is _just_ the value — no extra pointer per element. Every linked node pays the price of one (`sllnode`) or two (`dllnode`) extra pointers of memory, even for a value as small as an `int`.
+
+#### • Linked lists • Insertion is easy – just tack onto the front
+
+• Deletion is easy – once you find the element 
+• Lookup is bad – have to rely on linear search 
+• Relatively difficult to sort – unless you’re willing to compromise on super-fast insertion and instead sort as you construct 
+• Relatively small size-wise (not as small as arrays)
+
+- **Insertion is easy — tack onto the front**: your `insert()` function for the singly-linked list didn't need to search anywhere — it just built a new node and pointed it at the old head. O(1), no matter how long the list already was.
+- **Deletion is easy — once you find the element**: notice the split in `delete_node()` — the _search_ to find the target value is the slow part (linear scan), but once `cur` points at the right node, actually unlinking it is just a couple of pointer reassignments. That's the "once you find the element" caveat exactly.
+- **Lookup is bad**: your `find()` function has no way to jump to the middle of the list — it has to start at `head` and walk `next` one node at a time until it matches or falls off the end. No shortcuts like array indexing.
+- **Harder to sort**: since there's no `array[i]`, classic swap-based sorts (like the ones you'd write for an array) don't translate directly — you either rearrange pointers instead of values (more bookkeeping) or you give up on "insert instantly at the front" and instead insert each new node in its correct sorted position as you build the list (an _insertion sort_, essentially), which is exactly the "sort as you construct" tradeoff mentioned here.
+- **Size**: each node needs extra memory for its pointer(s) — 1 for singly-linked, 2 for doubly-linked — so it's bigger per-element than a raw array, but still far more compact than something like your trie's 10-pointer nodes.
+
+#### • Hash tables • Insertion is a two-step process – hash, then add 
+
+• Deletion is easy – once you find the element 
+• Lookup is on average better than with linked lists because you have the benefit of a real-world constant factor • Not an ideal data structure if sorting is the goal – just use an array
+• Can run the gamut of size
+
+- **Insertion is two-step — hash, then add**: your `insert()` function literally does this in two clear steps — first `hash(key)` computes which bucket the key belongs in, _then_ the new entry gets pushed onto that bucket's chain. Neither step alone gets you anywhere; you need both.
+- **Deletion is easy — once you find the element**: same pattern as linked lists. `delete_key()` still has to walk the target bucket's chain to find the matching key (the "finding" part), but once found, unlinking it is just a couple of pointer updates — cheap.
+- **Lookup beats linked lists in practice — "real-world constant factor"**: this is the key nuance. Big-O-wise, a hash table lookup is still technically O(chain length) in the worst case, same shape as a linked list. But in practice, `HASH_MAX` buckets means any single chain is typically _much_ shorter than the whole dataset — your demo's `HASH_MAX = 10` split entries across all 10 buckets rather than one long chain of everything, so each `find()` only has to walk a fraction of the total data. That's the "constant factor" advantage: same theoretical shape, dramatically shorter chains in practice.
+- **Bad for sorting**: your `print_table()` output makes this obvious — entries come out bucket-by-bucket, in whatever order `hash()` happened to scatter them, not in any meaningful key order. If you need sorted output, you're better off copying everything into an array and sorting that.
+- **Size can run the gamut**: unlike your fixed-`CAPACITY` array stack/queue, a hash table's `HASH_MAX` (number of buckets) can be tuned or resized (rehashed) as the dataset grows, so it doesn't box you into one size class the way arrays do.
+
+• Tries 
+
+• Insertion is complex – a lot of dynamic memory allocation, but gets easier as you go 
+• Deletion is easy – just free a node
+• Lookup is fast – not quite as fast as an array, but almost
+• Already sorted – sorts as you build in almost all situations 
+• Rapidly becomes huge, even with very little data present, not great if space is at a premium
+
+- **Insertion is complex, but gets easier as you go**: your `insert()` function calls `create()` — a full `malloc` plus zeroing out all 10 `paths` — every single time it needs a new node along the path. Early on, inserting `"123"` for Stanford means allocating 3 brand-new nodes. But once that path exists, inserting `"124"` for Berkeley only needs _one_ new node (for the final `4`), since `"12"`'s path is already built. The tree gets cheaper to extend as shared prefixes accumulate.
+- **Deletion is easy — just free a node**: your `destroy()` shows this in its simplest form (freeing the whole tree recursively), but deleting a _single_ key is similarly light — you'd just clear that node's `university` string back to `""` (un-marking it as a key), and only need to free actual nodes if they have no other children depending on them.
+- **Lookup is fast — almost array-speed**: your `find()` never scans anything — it jumps straight through `paths[idx]` at each character, so the cost is proportional to the _key's length_ (`k`), not how many keys are stored. That's why `find("1250")` is just as fast whether your trie holds 4 entries or 4 million.
+- **Already sorted, "sorts as you build"**: because `paths[0]` through `paths[9]` are laid out in digit order, walking the trie depth-first from `paths[0]` onward would naturally visit every key in ascending numeric order — no separate sort step needed, unlike the hash table's scattered bucket order.
+- **Rapidly becomes huge**: your struct reserves an array of **10 pointers** (`paths[10]`) _per node_ — that's 80 bytes of pointers alone on a 64-bit system, before even counting the 20-byte `university` field. Compare that to a linked-list node's single 8-byte pointer. A trie with mostly-empty branches burns a lot of space on `NULL` pointers that are never used — exactly the "rapidly becomes huge" cost being called out here.
+
+
+# Data Structure Comparison
+
+| Structure | Insertion | Deletion | Lookup | Sorting | Memory Overhead | Size Flexibility |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Array (raw)** | Bad — shifts elements | Bad — shifts elements | Great — O(1) random access | Easy (sort in place) | Small — just the values | Fixed |
+| **Array-based stack** | Great — O(1) at top only | Great — O(1) at top only | Good — O(1) via index | N/A (LIFO order only) | Small | Fixed (`CAPACITY`) |
+| **Array-based queue (circular)** | Great — O(1) at rear | Great — O(1) at front | Good — O(1) via index | N/A (FIFO order only) | Small | Fixed (`CAPACITY`) |
+| **Singly linked list** | Great — O(1) if you have the spot | Great — O(1) if you have the spot | Bad — O(n), must walk `next` | Harder (no direct swap-by-index) | Extra: 1 pointer/node | Grows/shrinks freely |
+| **Doubly linked list** | Great — O(1), easier than singly | Great — O(1), no need to track "prev" separately | Bad — O(n), but can walk either direction | Harder | Extra: 2 pointers/node | Grows/shrinks freely |
+| **Linked-list queue** | Great — O(1) at rear | Great — O(1) at front | Bad — O(n) for arbitrary lookup | N/A (FIFO order only) | Extra: 2 pointers/node | Grows/shrinks freely |
+| **Hash table (chaining)** | Great — O(1) average | Great — O(1) average | Great — O(1) average | Not naturally ordered | Extra: pointer + bucket array | Grows freely (buckets can rehash) |
+| **Trie** | Great — O(k), k = key length | Good — O(k) | Great — O(k), independent of keys stored | Naturally alphabetical via traversal | Heavy: up to 10 pointers/node here | Grows freely |
+
+## Key takeaways
+- Array-based stack/queue avoid arrays' worst weakness (mid-array insert/delete) by only ever touching one end.
+- Linked structures pay a per-node pointer cost in exchange for O(1) insert/delete anywhere and no fixed size ceiling.
+- Hash tables and tries both trade extra memory for near-constant-time lookup — hash tables via a computed index, tries via the key's own characters as a path.
